@@ -1,0 +1,83 @@
+{
+    "name": "Rive",
+    "description": "TMDB-indexed multi-provider streaming aggregator. Movies, TV, anime, K-drama from public stream providers.",
+    "author": "ROOCKY-dev",
+    "authorUrl": "https://github.com/ROOCKY-dev",
+    "platformUrl": "https://www.themoviedb.org",
+    "sourceUrl": "https://raw.githubusercontent.com/ROOCKY-dev/grayjay-rive/main/RiveConfig.json",
+    "repositoryUrl": "https://github.com/ROOCKY-dev/grayjay-rive",
+    "scriptUrl": "./RiveScript.js",
+    "iconUrl": "./rive.png",
+    "version": 1,
+    "id": "8a3e1b4c-1729-4d20-9c68-3d7f2a6e0001",
+
+    "packages": ["Http", "Utilities", "DOMParser"],
+    "allowEval": false,
+
+    "allowUrls": [
+        "api.themoviedb.org",
+        "image.tmdb.org",
+        "vidsrc.xyz",
+        ".vidsrc.xyz",
+        "vidsrc.cc",
+        ".vidsrc.cc",
+        "vidsrc.to",
+        ".vidsrc.to",
+        "cloudnestra.com",
+        ".cloudnestra.com",
+        "vidlink.pro",
+        ".vidlink.pro",
+        "embed.su",
+        ".embed.su",
+        "www.2embed.cc",
+        "streamsrcs.2embed.cc",
+        "moviesapi.club",
+        ".moviesapi.club",
+        "api.whvx.net",
+        "nsbx.wafflehacker.io",
+        ".wafflehacker.io",
+        "mirrors.whvx.net",
+        ".m3u8.justchill.workers.dev",
+        ".cloudfront.net",
+        ".akamaized.net",
+        ".googlevideo.com",
+        ".vidcache.net",
+        ".rcdn.io",
+        ".pkaystream.cc",
+        ".vidstream.pro"
+    ],
+
+    "constants": {
+        "TMDB_KEY": "da0a44a193abbcc156449115a613e191",
+        "TMDB_BASE": "https://api.themoviedb.org/3",
+        "IMG_BASE": "https://image.tmdb.org/t/p"
+    },
+
+    "supportedClaimTypes": [200],
+    "primaryClaimFieldType": 1,
+
+    "enableInSearch": true,
+    "enableInHome": true,
+    "subscriptionRateLimit": 0,
+
+    "settings": [
+        { "variable": "providersHeader",   "name": "Providers",                   "description": "Which upstream providers to probe for streams. The first working one is preferred but all working sources are listed.", "type": "Header" },
+        { "variable": "useVidsrcXyz",      "name": "VidSrc.xyz / CloudNestra",    "description": "Most reliable iframe→m3u8 path.",  "type": "Boolean", "default": "true"  },
+        { "variable": "useVidsrcCc",       "name": "VidSrc.cc",                   "description": "Backup iframe scraper.",           "type": "Boolean", "default": "true"  },
+        { "variable": "use2Embed",         "name": "2embed.cc",                   "description": "Iframe at streamsrcs.2embed.cc.",  "type": "Boolean", "default": "true"  },
+        { "variable": "useEmbedSu",        "name": "Embed.su",                    "description": "May be region-blocked.",           "type": "Boolean", "default": "false" },
+        { "variable": "useMoviesApiClub",  "name": "moviesapi.club",              "description": "",                                  "type": "Boolean", "default": "false" },
+
+        { "variable": "metaHeader",        "name": "Catalogue",                   "description": "How home and search behave.",       "type": "Header" },
+        { "variable": "language",          "name": "Language",                    "description": "TMDB language code for titles + descriptions.", "type": "Dropdown", "default": "0",
+          "options": ["en-US","es-ES","fr-FR","de-DE","ja-JP","ko-KR","zh-CN","pt-BR","ar-SA"] },
+        { "variable": "region",            "name": "Region",                      "description": "TMDB region for release dates / availability.", "type": "Dropdown", "default": "0",
+          "options": ["US","GB","DE","FR","JP","KR","BR","SA"] },
+        { "variable": "includeAdult",      "name": "Include adult content",       "description": "",                                  "type": "Boolean", "default": "false" },
+
+        { "variable": "perfHeader",        "name": "Performance",                 "description": "",                                  "type": "Header" },
+        { "variable": "providerTimeoutMs", "name": "Per-provider timeout",        "description": "Cancel a provider attempt after this many ms.", "type": "Dropdown", "default": "1",
+          "options": ["3000","5000","8000","12000","20000"] },
+        { "variable": "verboseLogging",    "name": "Verbose logging",             "description": "Pipe scraper traces to the dev portal log tab.", "type": "Boolean", "default": "false" }
+    ]
+}
