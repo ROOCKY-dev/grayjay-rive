@@ -206,12 +206,13 @@ source.getPlaylist = function(url) {
     return new PlatformPlaylistDetails({
         id: new PlatformID(PLUGIN_NAME, "s_" + tvId + "_" + season, null, CLAIM_TYPE, FIELD_TMDB),
         name: (show.name || "Season") + " — Season " + season,
-        thumbnails: new Thumbnails([new Thumbnail(img(s.poster_path || show.poster_path, "w500"), 0)]),
+        thumbnail: img(s.poster_path || show.poster_path, "w500"),
         author: tmdbAuthor(),
+        datetime: ts(s.air_date || show.first_air_date),
         url: url,
         shareUrl: url,
         videoCount: episodes.length,
-        contents: episodes
+        contents: new ContentPager(episodes, false, {})
     });
 };
 
@@ -241,7 +242,7 @@ function resolveMovie(tmdbId, url) {
         runtimeSec: (m.runtime || 0) * 60
     };
     var sources = collectSources(req);
-    if (sources.length === 0) throw new UnavailableException("No working providers for this title.");
+    if (sources.length === 0) throw new UnavailableException("No working providers. " + (req.attemptsSummary || ""));
 
     return new PlatformVideoDetails({
         id: new PlatformID(PLUGIN_NAME, "m_" + tmdbId, null, CLAIM_TYPE, FIELD_TMDB),
@@ -368,17 +369,23 @@ function collectSources(req) {
         { setting: "useMoviesApiClub", fn: scrapeMoviesApiClub, name: "moviesapi.club" }
     ];
     var out = [];
+    var attempts = [];
     for (var i = 0; i < providers.length; i++) {
         var p = providers[i];
-        if (!_settings[p.setting]) continue;
+        if (!_settings[p.setting]) { attempts.push(p.name + ": disabled"); continue; }
         try {
             var streams = p.fn(req) || [];
             tlog(p.name + ": " + streams.length + " streams");
+            attempts.push(p.name + ": " + streams.length + " streams");
             for (var j = 0; j < streams.length; j++) out.push(streamToSource(streams[j], req));
         } catch (e) {
-            tlog(p.name + " failed: " + (e.msg || e.message || e));
+            var msg = (e.msg || e.message || String(e));
+            tlog(p.name + " failed: " + msg);
+            attempts.push(p.name + ": " + msg);
         }
     }
+    // expose summary so resolveMovie/resolveEpisode can include it in the user-facing error
+    req.attemptsSummary = attempts.join(" | ");
     return out;
 }
 
@@ -434,25 +441,44 @@ function scrapeVidSrcXyz(req) {
                    "&season=" + req.season + "&episode=" + req.episode;
     }
     var r1 = http.GET(step1Url, { Referer: "https://vidsrc.xyz/" }, false);
-    if (!r1.isOk) return [];
+    tlog("vsx step1 " + step1Url + " -> " + r1.code + " (" + (r1.body || "").length + "B, url=" + (r1.url || "?") + ")");
+    if (!r1.isOk) throw new ScriptException("step1 " + r1.code);
     var rcp = match(r1.body, /(cloudnestra\.com\/rcp\/[A-Za-z0-9+/=_-]+)/);
-    if (!rcp) return [];
+    if (!rcp) throw new ScriptException("step1 no cloudnestra/rcp link in " + (r1.body || "").length + "B response");
+    tlog("vsx rcp = https://" + rcp.slice(0, 70) + "...");
 
     var r2 = http.GET("https://" + rcp, { Referer: "https://vidsrc.xyz/" }, false);
-    if (!r2.isOk) return [];
+    tlog("vsx step2 -> " + r2.code + " (" + (r2.body || "").length + "B)");
+    if (!r2.isOk) throw new ScriptException("step2 " + r2.code);
     var pro = match(r2.body, /(\/prorcp\/[A-Za-z0-9+/=_-]+)/);
-    if (!pro) return [];
+    if (!pro) throw new ScriptException("step2 no /prorcp link");
+    tlog("vsx pro = " + pro.slice(0, 70) + "...");
 
     var r3 = http.GET("https://cloudnestra.com" + pro, { Referer: "https://" + rcp }, false);
-    if (!r3.isOk) return [];
+    tlog("vsx step3 -> " + r3.code + " (" + (r3.body || "").length + "B)");
+    if (!r3.isOk) throw new ScriptException("step3 " + r3.code);
 
-    // Final URL is in `file:"<...>"` (sometimes plain, sometimes obfuscated).
+    // Try multiple m3u8 extraction patterns. cloudnestra's prorcp pages have varied;
+    // file:"..." is the most common; sometimes the URL is base64'd or behind a join().
     var fileUrl = match(r3.body, /file:\s*"([^"]+\.m3u8[^"]*)"/);
+    if (!fileUrl) fileUrl = match(r3.body, /file\s*:\s*'([^']+\.m3u8[^']*)'/);
+    if (!fileUrl) fileUrl = match(r3.body, /src:\s*"([^"]+\.m3u8[^"]*)"/);
+    if (!fileUrl) fileUrl = match(r3.body, /(https?:\/\/[^"\s'<>]+\.m3u8[^"\s'<>]*)/);
     if (!fileUrl) {
-        // Some prorcp pages emit `file:"..."` after a base64 atob. Pull the embedded URL.
-        fileUrl = match(r3.body, /(https?:\/\/[^"\s]+\.m3u8[^"\s]*)/);
+        // Some pages assemble the URL from atob(...) of a long string. Try to find
+        // a base64 blob and decode if it looks like an m3u8.
+        var b64 = match(r3.body, /atob\s*\(\s*["']([A-Za-z0-9+/=]{40,})["']\s*\)/);
+        if (b64) {
+            try {
+                var decoded = atob(b64);
+                if (decoded.indexOf(".m3u8") > -1) {
+                    fileUrl = match(decoded, /(https?:\/\/[^"\s'<>]+\.m3u8[^"\s'<>]*)/);
+                }
+            } catch (_) { /* invalid base64, ignore */ }
+        }
     }
-    if (!fileUrl) return [];
+    if (!fileUrl) throw new ScriptException("step3 no m3u8 in " + (r3.body || "").length + "B response");
+    tlog("vsx final m3u8 = " + fileUrl);
 
     return [{
         kind: "hls",

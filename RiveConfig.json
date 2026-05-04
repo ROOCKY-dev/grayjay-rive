@@ -8,7 +8,7 @@
     "repositoryUrl": "https://github.com/ROOCKY-dev/grayjay-rive",
     "scriptUrl": "./RiveScript.js",
     "iconUrl": "./rive.png",
-    "version": 1,
+    "version": 2,
     "id": "8a3e1b4c-1729-4d20-9c68-3d7f2a6e0001",
 
     "packages": ["Http", "Utilities", "DOMParser"],
